@@ -205,9 +205,11 @@ function playCorrectSound() {
   o.connect(g); g.connect(audioCtx.destination);
   o.type = 'sine';
   const now = audioCtx.currentTime;
-  o.frequency.setValueAtTime(523, now);      // C5
-  o.frequency.setValueAtTime(659, now+0.08); // E5
-  o.frequency.setValueAtTime(784, now+0.16); // G5
+  // Base pitch rises with streak (caps at +2 octaves / streak 20)
+  const pitchMultiplier = 1 + Math.min(streak, 20) * 0.05;
+  o.frequency.setValueAtTime(523 * pitchMultiplier, now);
+  o.frequency.setValueAtTime(659 * pitchMultiplier, now+0.08);
+  o.frequency.setValueAtTime(784 * pitchMultiplier, now+0.16);
   g.gain.setValueAtTime(0.3, now);
   g.gain.exponentialRampToValueAtTime(0.01, now+0.35);
   o.start(now); o.stop(now+0.35);
