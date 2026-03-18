@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thomas's Math Adventure</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@600;800&display=swap');
+:root {
+  --bg: #1a1a2e;
+  --card: #16213e;
+  --pop1: #ff6b6b;
+  --pop2: #ffd93d;
+  --pop3: #6bcb77;
+  --pop4: #4d96ff;
+  --pop5: #ff922b;
+}
+body {
+  font-family: 'Nunito', 'Fredoka One', sans-serif;
+  background: var(--bg);
+  color: #fff;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.screen { display: none; flex-direction: column; align-items: center; text-align: center; width: 100%; max-width: 500px; padding: 20px; }
+.screen.active { display: flex; }
+h1 { font-family: 'Fredoka One', cursive; font-size: 2.4rem; margin-bottom: 8px; }
+.subtitle { font-size: 1.1rem; color: #aaa; margin-bottom: 24px; }
+
+/* Start Screen */
+.logo-emoji { font-size: 5rem; animation: bounce 1.5s infinite; }
+@keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-18px); } }
+.start-btn {
+  font-family: 'Fredoka One', cursive; font-size: 1.6rem;
+  background: linear-gradient(135deg, var(--pop5), var(--pop1));
+  color: #fff; border: none; border-radius: 60px;
+  padding: 18px 48px; margin-top: 20px; cursor: pointer;
+  box-shadow: 0 6px 20px rgba(255,107,107,.4);
+  transition: transform .15s;
+}
+.start-btn:active { transform: scale(.95); }
+
+/* HUD */
+.hud {
+  display: flex; justify-content: space-between; width: 100%;
+  margin-bottom: 12px; font-size: .95rem;
+}
+.hud span { background: var(--card); padding: 6px 14px; border-radius: 20px; }
+
+/* Level bar */
+.level-bar-wrap { width: 100%; background: #222; border-radius: 12px; height: 18px; margin-bottom: 18px; overflow: hidden; }
+.level-bar { height: 100%; width: 0%; border-radius: 12px; background: linear-gradient(90deg, var(--pop4), var(--pop3)); transition: width .4s; }
+.level-label { font-size: .85rem; color: #ccc; margin-bottom: 6px; }
+
+/* Problem */
+.problem {
+  font-family: 'Fredoka One', cursive; font-size: 3.2rem;
+  background: var(--card); border-radius: 20px;
+  padding: 24px 36px; margin-bottom: 24px;
+  box-shadow: 0 4px 15px rgba(0,0,0,.3);
+  min-width: 260px;
+}
+
+/* Choices */
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%; }
+.choice-btn {
+  font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 1.5rem;
+  border: none; border-radius: 16px; padding: 20px 10px;
+  cursor: pointer; color: #fff;
+  transition: transform .12s, box-shadow .12s;
+  box-shadow: 0 4px 10px rgba(0,0,0,.25);
+}
+.choice-btn:active { transform: scale(.93); }
+.choice-btn:nth-child(1) { background: var(--pop1); }
+.choice-btn:nth-child(2) { background: var(--pop4); }
+.choice-btn:nth-child(3) { background: var(--pop3); }
+.choice-btn:nth-child(4) { background: var(--pop5); }
+
+.choice-btn.correct { animation: popCorrect .5s; }
+@keyframes popCorrect { 0% { transform: scale(1); } 40% { transform: scale(1.15); } 100% { transform: scale(1); } }
+.choice-btn.wrong { animation: shake .4s; }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+
+/* Feedback */
+.feedback {
+  font-size: 1.3rem; min-height: 2em; margin-top: 14px;
+  font-weight: 800; transition: opacity .3s;
+}
+
+/* Confetti canvas */
+#confetti {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 999;
+}
+
+/* End screen */
+.final-score { font-size: 3rem; font-family: 'Fredoka One', cursive; color: var(--pop2); }
+.stars { font-size: 3rem; margin: 10px 0; }
+</style>
+</head>
+<body>
+
+<canvas id="confetti"></canvas>
+
+<!-- START SCREEN -->
+<div id="start-screen" class="screen active">
+  <div class="logo-emoji">🚀</div>
+  <h1>Thomas's Math Adventure</h1>
+  <p class="subtitle">Multiply your way to the stars! ⭐</p>
+  <button class="start-btn" onclick="startGame()">Let's Go! 🎮</button>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="game-screen" class="screen">
+  <div class="hud">
+    <span>⭐ Score: <b id="score">0</b></span>
+    <span>🔥 Streak: <b id="streak">0</b></span>
+  </div>
+  <div class="level-label" id="level-label">Level 1 — Easy Peasy 🌱</div>
+  <div class="level-bar-wrap"><div class="level-bar" id="level-bar"></div></div>
+  <div class="problem" id="problem">? × ?</div>
+  <div class="choices" id="choices"></div>
+  <div class="feedback" id="feedback">&nbsp;</div>
+</div>
+
+<!-- END SCREEN -->
+<div id="end-screen" class="screen">
+  <div class="logo-emoji">🏆</div>
+  <h1>Amazing Job!</h1>
+  <div class="stars" id="end-stars"></div>
+  <div class="final-score">Score: <span id="final-score">0</span></div>
+  <p class="subtitle" id="end-msg"></p>
+  <button class="start-btn" onclick="startGame()">Play Again! 🔄</button>
+</div>
+
+<script>
+// ---- STATE ----
+let score=0, streak=0, bestStreak=0, questionsAnswered=0, level=1, xp=0;
+const XP_PER_LEVEL = 5;
+const TOTAL_QUESTIONS = 20;
+let currentAnswer = 0;
+let locked = false;
+
+// ---- LEVELS & DIFFICULTY ----
+const levels = [
+  { name: "Easy Peasy 🌱", tables: [2,5,10], maxFactor: 10 },
+  { name: "Getting Warmer 🔥", tables: [2,3,4,5,10], maxFactor: 10 },
+  { name: "Multiplication Master 💪", tables: [2,3,4,5,6,7,8,9,10], maxFactor: 11 },
+  { name: "Super Star ⭐", tables: [2,3,4,5,6,7,8,9,10,11,12], maxFactor: 12 },
+  { name: "Math Legend 🧠", tables: [6,7,8,9,11,12], maxFactor: 12 },
+];
+
+function getLevel() { return levels[Math.min(level-1, levels.length-1)]; }
+
+// ---- SCREENS ----
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ---- GAME ----
+function startGame() {
+  score=0; streak=0; bestStreak=0; questionsAnswered=0; level=1; xp=0;
+  updateHUD();
+  show('game-screen');
+  nextQuestion();
+}
+
+function nextQuestion() {
+  if (questionsAnswered >= TOTAL_QUESTIONS) return endGame();
+  locked = false;
+  document.getElementById('feedback').innerHTML = '&nbsp;';
+  const lv = getLevel();
+  const a = lv.tables[Math.floor(Math.random()*lv.tables.length)];
+  const b = Math.floor(Math.random()*(lv.maxFactor-1))+2;
+  currentAnswer = a * b;
+  document.getElementById('problem').textContent = `${a} × ${b}`;
+
+  // Generate 4 unique choices including the answer
+  const choices = new Set([currentAnswer]);
+  while (choices.size < 4) {
+    const off = Math.floor(Math.random()*20) - 10;
+    const fake = currentAnswer + (off === 0 ? (Math.random()>.5?1:-1)*(Math.floor(Math.random()*5)+1) : off);
+    if (fake > 0) choices.add(fake);
+  }
+  const arr = [...choices].sort(() => Math.random()-.5);
+  const container = document.getElementById('choices');
+  container.innerHTML = '';
+  arr.forEach(val => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = val;
+    btn.onclick = () => checkAnswer(val, btn);
+    container.appendChild(btn);
+  });
+}
+
+const CORRECT_MSGS = ["Amazing! 🎉","You got it! 🌟","Awesome! 💥","Super! 🚀","Wow! ✨","Brilliant! 🧠","Yes! 🎯","Fantastic! 🏆"];
+const WRONG_MSGS = ["Almost! Try the next one! 💪","So close! Keep going! 🌈","Not quite, but you're learning! 📚","Oops! You'll get the next one! 😊","Good try! Keep it up! ⭐"];
+
+function checkAnswer(val, btn) {
+  if (locked) return;
+  locked = true;
+  questionsAnswered++;
+  if (val === currentAnswer) {
+    score += 10 + streak * 2;
+    streak++;
+    if (streak > bestStreak) bestStreak = streak;
+    xp++;
+    if (xp >= XP_PER_LEVEL) { xp = 0; level++; }
+    btn.classList.add('correct');
+    document.getElementById('feedback').textContent = CORRECT_MSGS[Math.floor(Math.random()*CORRECT_MSGS.length)];
+    fireConfetti();
+  } else {
+    streak = 0;
+    btn.classList.add('wrong');
+    // Highlight the correct one
+    document.querySelectorAll('.choice-btn').forEach(b => {
+      if (parseInt(b.textContent) === currentAnswer) b.classList.add('correct');
+    });
+    document.getElementById('feedback').textContent = WRONG_MSGS[Math.floor(Math.random()*WRONG_MSGS.length)];
+  }
+  updateHUD();
+  setTimeout(nextQuestion, 1200);
+}
+
+function updateHUD() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('streak').textContent = streak;
+  const lv = getLevel();
+  document.getElementById('level-label').textContent = `Level ${level} — ${lv.name}`;
+  document.getElementById('level-bar').style.width = `${(xp/XP_PER_LEVEL)*100}%`;
+}
+
+function endGame() {
+  show('end-screen');
+  document.getElementById('final-score').textContent = score;
+  const stars = score >= 300 ? '⭐⭐⭐' : score >= 180 ? '⭐⭐' : '⭐';
+  document.getElementById('end-stars').textContent = stars;
+  document.getElementById('end-msg').textContent =
+    `You reached Level ${level} with a best streak of ${bestStreak}! Keep practicing!`;
+  fireConfetti(); setTimeout(fireConfetti, 600); setTimeout(fireConfetti, 1200);
+}
+
+// ---- CONFETTI ----
+const C = document.getElementById('confetti');
+const ctx = C.getContext('2d');
+let particles = [];
+function resizeCanvas() { C.width = window.innerWidth; C.height = window.innerHeight; }
+window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+function fireConfetti() {
+  const colors = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#ff922b','#e84393','#00cec9'];
+  for (let i=0; i<40; i++) {
+    particles.push({
+      x: C.width/2 + (Math.random()-.5)*200,
+      y: C.height/2,
+      vx: (Math.random()-.5)*12,
+      vy: Math.random()*-14 - 4,
+      size: Math.random()*8+4,
+      color: colors[Math.floor(Math.random()*colors.length)],
+      life: 1,
+      rot: Math.random()*6.28,
+      rv: (Math.random()-.5)*.3
+    });
+  }
+  if (!animating) { animating=true; animateConfetti(); }
+}
+let animating = false;
+function animateConfetti() {
+  ctx.clearRect(0,0,C.width,C.height);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += .35;
+    p.life -= .015; p.rot += p.rv;
+    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+    ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0,p.life);
+    ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size);
+    ctx.restore();
+  });
+  particles = particles.filter(p => p.life > 0);
+  if (particles.length) requestAnimationFrame(animateConfetti);
+  else { animating=false; ctx.clearRect(0,0,C.width,C.height); }
+}
+</script>
+</body>
+</html>
